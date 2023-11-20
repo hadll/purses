@@ -47,7 +47,8 @@ def tuple_subtract(*tuples:tuple):
             new_total.append(total[i]-item)
         total = new_total
     return tuple(total)
-
+def tuple_flip(tup:tuple):
+    return (tup[1],tup[0])
 class Errors:
     def __init__(self) -> None:
         self.log = []
@@ -215,7 +216,10 @@ class Screen:
         self.errors = Errors()
         self.stdscr = curses.initscr()
         if size == (-1,-1):
-            size = self.stdscr.getmaxyx()
+            size = tuple_flip(self.stdscr.getmaxyx())
+            size = (size[0]-1,size[1])
+            self.errors.add(f"size: {size}")
+            self.errors.dump("errors.txt")
         self.errors.add(f"size: {size}")
         self.errors.dump("errors.txt")
         self.display_buffer = Grid(*size,default="0000")
@@ -232,6 +236,8 @@ class Screen:
 
         This method does not clear the buffer
         '''
+        self.errors.add(self.display_buffer.raw)
+        self.errors.dump("errors.txt")
         for xpos,xval in enumerate(self.display_buffer.raw):
             for ypos,yval in enumerate(xval):
                 if len(yval) == 4:
@@ -323,6 +329,8 @@ class Screen:
             - the str that gets appended to the end when using truncate fit
             - default is "..."
         '''
+        x//=2
+        y//=2
         if "suffix" not in overflow:
             suffix = "..."
             suffixlen = 3
@@ -341,13 +349,18 @@ class Screen:
                 w,h = tuple_subtract(self.display_buffer.get_size(),(x,y))
                 w-=x
                 h-=y
+        space=w-suffixlen
         match overflow["fit"]:
             case "truncate":
-                space=w-suffixlen
                 for i,char in enumerate(string[:-suffixlen]):
                     self.draw_char(x+i,y,char)
             case "wrap":
-                pass
+                lines = 0
+                distance = 0
+                for i,word in enumerate(string.split(" ")):
+                    if len(word)+distance > space:
+                        lines += 1
+                    self.draw_str(x,y+distance,word,{"type":"none"})
             case "wrap+truncate":
                 pass
     def draw_line(self,x1:int,y1:int,x2:int,y2:int,v:int=1):
